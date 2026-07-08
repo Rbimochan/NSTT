@@ -9,7 +9,7 @@
 # pin both exactly rather than using >= ranges, which let pip leave the
 # broken huggingface_hub version in place.
 transformers==4.49.0
-huggingface_hub==0.25.2
+huggingface_hub==0.27.1
 datasets==3.2.0
 accelerate==1.2.1
 evaluate==0.4.3
