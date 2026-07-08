@@ -1,0 +1,393 @@
+{
+  "version": 24,
+  "updated_at": "2026-07-06T02:05:00Z",
+  "updated_by": "Claude",
+  "project": { "name": "NSTT — Nepali Speech-to-Text", "mode": "greenfield" },
+  "current_sprint": "Sprint 1",
+  "architecture_status": "Approved",
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Project scaffolding & Colab-ready environment setup",
+      "type": "feature",
+      "status": "Completed",
+      "owner": "Cursor",
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Repository folders created: data/, notebooks/, src/, models/, reports/ (data/ and models/ gitignored)",
+        "requirements.txt (or environment.yml) with pinned versions for transformers, datasets, torchaudio or librosa, evaluate, jiwer, accelerate",
+        "A Colab-ready notebook skeleton (notebooks/00_setup.ipynb) that: mounts Google Drive, verifies GPU/T4 availability, installs pinned dependencies",
+        ".gitignore covering data/, models/, checkpoints, .ipynb_checkpoints, __pycache__",
+        "README.md documenting how to open and run the setup notebook in Google Colab"
+      ],
+      "progress": "Scaffold complete: folder layout, .gitignore, pinned requirements.txt, Colab setup notebook (Drive mount, GPU check, pip install, import smoke test), README with Colab open/run instructions. Local pip+import validation passed on Python 3.12; Colab T4 end-to-end run pending human verification.",
+      "blockers": [],
+      "review": {
+        "status": "Approved",
+        "failed_reviews": 0,
+        "notes": [
+          "Approved 2026-07-03. All acceptance criteria met. Colab E2E not run by Cursor — recommend human runs 00_setup.ipynb with GPU before T-003."
+        ]
+      },
+      "files": [
+        ".gitignore",
+        "requirements.txt",
+        "README.md",
+        "data/.gitkeep",
+        "models/.gitkeep",
+        "reports/.gitkeep",
+        "src/__init__.py",
+        "notebooks/00_setup.ipynb"
+      ],
+      "test_results": {
+        "structural_layout": "passed",
+        "notebook_json_valid": "passed",
+        "pip_install_py312": "passed",
+        "import_smoke_test_py312": "passed",
+        "colab_e2e_gpu": "not_run — requires fresh Colab session with GPU runtime; human should Run all on 00_setup.ipynb"
+      }
+    },
+    {
+      "id": "T-002",
+      "title": "Data acquisition & preprocessing pipeline for OpenSLR SLR54",
+      "type": "feature",
+      "status": "Completed",
+      "owner": "Cursor",
+      "dependencies": ["T-001"],
+      "acceptance_criteria": [
+        "Script/notebook downloads or ingests OpenSLR SLR54",
+        "Audio resampled to 16kHz mono; transcripts NFC-normalized",
+        "Utterances filtered to 0.5s < duration < 30s",
+        "Speaker-disjoint 80/10/10 train/val/test split produced and saved",
+        "Split manifest files (csv/jsonl) committed under data/ (metadata only, not raw audio)"
+      ],
+      "progress": "SLR54 pipeline implemented in src/ (download, preprocess, speaker-disjoint split, manifests) + notebooks/01_data_prep.ipynb. TSV ingest validated (157,905 utts / 527 speakers). Synthetic local run produced committed manifests under data/manifests/. Full 16-zip preprocess requires Colab run (~8 GB).",
+      "blockers": [],
+      "review": {
+        "status": "Approved",
+        "failed_reviews": 0,
+        "notes": [
+          "Approved 2026-07-03. All 5 acceptance criteria met; splits.py verified correct (speaker-level partitioning, disjointness asserted, seeded); pytest 7/7 independently re-run and passed. Synthetic-data validation approach disclosed transparently, not hidden. gitignore nested-exception fix from T-001 review confirmed correct. Full SLR54 zip run deferred to Colab per T-001 constraints — acceptable."
+        ]
+      },
+      "files": [
+        "src/slr54.py",
+        "src/preprocessing.py",
+        "src/splits.py",
+        "src/manifests.py",
+        "src/pipeline.py",
+        "notebooks/01_data_prep.ipynb",
+        "scripts/generate_synthetic_manifests.py",
+        "tests/test_data_prep.py",
+        ".gitignore",
+        "data/manifests/train.jsonl",
+        "data/manifests/val.jsonl",
+        "data/manifests/test.jsonl",
+        "data/manifests/all.jsonl"
+      ],
+      "test_results": {
+        "pytest": "7/7 passed",
+        "slr54_tsv_download_parse": "passed — 157905 utterances, 527 speakers",
+        "synthetic_split_sizes": "train=32, val=4, test=4",
+        "speaker_overlap": 0,
+        "spot_check_audio": "passed — 3 files @ 16kHz mono, duration in bounds, NFC normalized",
+        "manifests_parseable": "passed",
+        "full_slr54_zip_pipeline": "not_run — ~8 GB download; run notebooks/01_data_prep.ipynb in Colab"
+      }
+    },
+    {
+      "id": "T-003",
+      "title": "Whisper-Small fine-tuning script/notebook on Colab T4",
+      "type": "feature",
+      "status": "Completed",
+      "owner": "Cursor",
+      "dependencies": ["T-002"],
+      "acceptance_criteria": [
+        "Notebook loads openai/whisper-small and WhisperProcessor",
+        "Seq2SeqTrainingArguments configured for T4 (batch size 2, grad_accum 4, lr 1e-4, warmup 500, max_steps 2000, eval_steps 200)",
+        "Checkpoints saved to Google Drive at save_steps intervals and resumable after disconnect",
+        "Training run completes at least one full evaluation cycle with logged loss/eval curves"
+      ],
+      "progress": "Revision v8: consolidated training notebook to notebooks/02_finetune_whisper.ipynb (inference demo + pip install folded in); deleted root whisper_small.ipynb. Core: src/training.py, smoke eval at step 3, checkpoint-3 saved.",
+      "blockers": [],
+      "review": {
+        "status": "Approved",
+        "failed_reviews": 1,
+        "notes": [
+          "2026-07-03: Core implementation verified correct — eval_loss=0.806/eval_wer=0.667 in checkpoint-3/trainer_state.json matches reported values exactly, 6/6 tests pass independently, checkpoint reloads successfully. First submission requested changes for a duplicate root-level notebook.",
+          "2026-07-03 (revision): Approved. Confirmed root whisper_small.ipynb deleted, single notebooks/02_finetune_whisper.ipynb retains the inference-demo cell (folded in, not dropped) plus pip-install cell. Re-ran pytest tests/test_training.py independently — 6/6 passed. All 4 acceptance criteria met."
+        ]
+      },
+      "files": [
+        "src/training.py",
+        "notebooks/02_finetune_whisper.ipynb",
+        "scripts/smoke_test_training.py",
+        "tests/test_training.py",
+        "README.md"
+      ],
+      "test_results": {
+        "pytest_training": "6/6 passed (revision re-run)",
+        "smoke_train_steps": "3/6 completed before workspace disconnect",
+        "smoke_eval_cycle": "passed at step 3 — eval_loss=0.806, eval_wer=0.667",
+        "checkpoint_save": "passed — models/whisper-small-ne-smoke/checkpoint-3/model.safetensors",
+        "checkpoint_reload": "passed — model.safetensors present at checkpoint-3 (967 MB)",
+        "colab_full_training": "not_run — run notebooks/02_finetune_whisper.ipynb on Colab T4 with SMOKE_TEST=False",
+        "revision_notebook_consolidation": "passed — root whisper_small.ipynb deleted; single notebook under notebooks/"
+      }
+    },
+    {
+      "id": "T-004",
+      "title": "Evaluation pipeline: WER/CER on in-domain and out-of-domain sets",
+      "type": "feature",
+      "status": "Completed",
+      "owner": "Cursor",
+      "dependencies": ["T-003"],
+      "acceptance_criteria": [
+        "Evaluation script computes WER and CER using jiwer/evaluate on the SLR54 held-out test set",
+        "Same script evaluates on at least one out-of-domain set (Common Voice Nepali or FLEURS ne_np)",
+        "NFC normalization applied identically to reference and hypothesis before scoring",
+        "Results exported as a table (csv/markdown) under reports/"
+      ],
+      "progress": "src/evaluation.py + notebooks/03_evaluate.ipynb. WER/CER via jiwer with shared NFC normalization. Out-of-domain: FLEURS ne_np. Smoke results on 3-step checkpoint exported to reports/.",
+      "blockers": [],
+      "review": {
+        "status": "Approved",
+        "failed_reviews": 0,
+        "notes": [
+          "Approved 2026-07-03. All 4 acceptance criteria met. Verified src/evaluation.py reuses src/preprocessing.py::normalize_transcript_nfc (not reimplemented) and applies it symmetrically to both reference and hypothesis in compute_wer_cer — the exact pitfall start.md §5.3 warns about. Independently re-ran pytest tests/test_evaluation.py — 5/5 passed. reports/wer_cer_results.{csv,md} content matches reported test_results exactly, and the markdown report correctly flags the numbers as smoke-checkpoint sanity checks, not real results — good judgment given the underlying model is only 3 training steps in."
+        ]
+      },
+      "files": [
+        "src/evaluation.py",
+        "notebooks/03_evaluate.ipynb",
+        "scripts/run_evaluation_smoke.py",
+        "tests/test_evaluation.py",
+        "reports/wer_cer_results.csv",
+        "reports/wer_cer_results.md",
+        "README.md"
+      ],
+      "test_results": {
+        "pytest_evaluation": "5/5 passed",
+        "nfc_symmetric_unit_test": "passed",
+        "in_domain_smoke": "SLR54 test n=2: WER=66.67%, CER=50.00%",
+        "out_of_domain_smoke": "FLEURS ne_np n=1: WER=100.00%, CER=96.00%",
+        "sanity_not_trivial": "passed — metrics neither 0%/0% nor broken pipeline",
+        "reports_export": "passed — reports/wer_cer_results.{csv,md}",
+        "note": "Smoke checkpoint (3 training steps); numbers are pipeline sanity checks only"
+      }
+    },
+    {
+      "id": "T-005",
+      "title": "Error analysis and report-artifact generation",
+      "type": "feature",
+      "status": "Completed",
+      "owner": "Cursor",
+      "dependencies": ["T-004"],
+      "acceptance_criteria": [
+        "Qualitative sample set of reference vs hypothesis transcripts exported under reports/",
+        "Error categorization covering phonetic confusion, OOV/rare vocabulary, noise degradation, code-switching per start.md §3.3 checklist",
+        "Plots/tables suitable for direct inclusion in the Results & Discussion report section"
+      ],
+      "progress": "src/error_analysis.py + notebooks/04_error_analysis.ipynb. Per-utterance ref/hyp samples and category heuristics (start.md §3.3). Exported error_samples, error_categories md/csv/png under reports/.",
+      "blockers": [],
+      "review": {
+        "status": "Approved",
+        "failed_reviews": 0,
+        "notes": [
+          "Approved 2026-07-03. All 3 acceptance criteria met. src/evaluation.py was refactored to expose UtterancePrediction/collect_manifest_predictions for reuse by error_analysis.py rather than re-transcribing from scratch — verified this refactor didn't break anything by re-running the full suite (test_data_prep + test_training + test_evaluation + test_error_analysis = 18/18 passed). reports/error_samples.{csv,md} and error_categories.{csv,md,png} content matches reported test_results exactly (4 utterances, oov_rare_vocabulary=4, dialect_accent=4), correctly caveated as smoke-checkpoint-only. Minor non-blocking nit: categorize_errors()'s final if/else both append 'other' (redundant, harmless). This completes the T-001..T-005 backlog; a full Colab GPU training run remains a human-executed next step."
+        ]
+      },
+      "files": [
+        "src/error_analysis.py",
+        "src/evaluation.py",
+        "notebooks/04_error_analysis.ipynb",
+        "scripts/run_error_analysis_smoke.py",
+        "tests/test_error_analysis.py",
+        "reports/error_samples.csv",
+        "reports/error_samples.md",
+        "reports/error_categories.csv",
+        "reports/error_categories.md",
+        "reports/error_categories.png",
+        "requirements.txt",
+        "README.md"
+      ],
+      "test_results": {
+        "pytest_error_analysis": "5/5 passed",
+        "smoke_end_to_end": "4 test utterances — categories: dialect_accent=4, oov_rare_vocabulary=4",
+        "exports_parseable": "passed — error_samples + error_categories md/csv",
+        "plot_generated": "passed — reports/error_categories.png",
+        "note": "Smoke checkpoint; categories degenerate until full Colab training"
+      }
+    },
+    {
+      "id": "T-006",
+      "title": "Full-pipeline QA pass (T-001..T-005)",
+      "type": "feature",
+      "status": "Completed",
+      "owner": "Cursor",
+      "dependencies": ["T-001", "T-002", "T-003", "T-004", "T-005"],
+      "acceptance_criteria": [
+        "Full test suite (test_data_prep.py, test_training.py, test_evaluation.py, test_error_analysis.py) re-run from a clean state and all pass, with the pass count reported",
+        "Each notebook (00_setup.ipynb, 01_data_prep.ipynb, 02_finetune_whisper.ipynb, 03_evaluate.ipynb, 04_error_analysis.ipynb) opens as valid notebook JSON and its Python imports/paths are checked for correctness (static check acceptable where a live Colab GPU run isn't available)",
+        "requirements.txt installs cleanly in a fresh environment and every pinned package importable",
+        "README.md, project-context.md folder-structure section, and any in-repo docs are cross-checked against the actual repo layout for stale references (e.g. no leftover mentions of the deleted root whisper_small.ipynb, correct notebook filenames/order)",
+        "Repo hygiene check: git-tracked files reviewed for anything that shouldn't be committed (raw audio, __pycache__, .DS_Store, large binaries) and .gitignore coverage confirmed sufficient",
+        "A QA summary report is produced (e.g. reports/qa_summary.md) listing what was checked, pass/fail per item, and any issues found — issues found should be filed as blockers, not silently fixed outside this task's scope unless trivial and clearly in-scope (e.g. fixing a stale doc reference)"
+      ],
+      "progress": "Full QA pass complete: 23/23 tests, 5 notebooks validated, fresh venv install OK, docs cross-checked, trivial fixes applied (README matplotlib, .pytest_cache gitignore, Agg backend, stale log ref). reports/qa_summary.md produced.",
+      "blockers": [],
+      "review": {
+        "status": "Approved",
+        "failed_reviews": 0,
+        "notes": [
+          "Approved 2026-07-03. All 6 acceptance criteria met. Independently re-ran full suite (MPLBACKEND=Agg pytest tests/) — 23/23 passed, matching reported count. Verified all three trivial fixes are genuinely present: matplotlib added to README deps list, .pytest_cache/ added to .gitignore, Agg backend set in error_analysis.py. Confirmed .gitignore correctly covers __pycache__/.DS_Store/data/*/models/* (on-disk cruft from local dev, not git-tracked). implementation-log.md history was appended to, not rewritten. reports/qa_summary.md is an honest, non-fabricated checklist. No blockers filed, none needed."
+        ]
+      },
+      "files": [
+        "reports/qa_summary.md",
+        "README.md",
+        ".gitignore",
+        "src/error_analysis.py",
+        ".duo/handoffs/implementation-log.md"
+      ],
+      "test_results": {
+        "full_pytest": "23/23 passed",
+        "notebook_json": "5/5 passed",
+        "fresh_venv_install": "passed",
+        "docs_cross_check": "passed (1 stale ref fixed)",
+        "gitignore_hygiene": "passed",
+        "qa_summary": "reports/qa_summary.md"
+      }
+    },
+    {
+      "id": "T-007",
+      "title": "Streamlit visualization dashboard for evaluation/error-analysis reports",
+      "type": "feature",
+      "status": "Completed",
+      "owner": "Cursor",
+      "dependencies": ["T-004", "T-005"],
+      "acceptance_criteria": [
+        "A Streamlit app (dashboard/app.py) launches locally via `streamlit run dashboard/app.py` without error",
+        "Displays the WER/CER results table from reports/wer_cer_results.csv (in-domain and out-of-domain rows)",
+        "Displays qualitative error samples from reports/error_samples.csv with a filter/selector by error category",
+        "Displays the error category breakdown (reuse reports/error_categories.csv, either embed reports/error_categories.png or regenerate an equivalent chart inline)",
+        "Displays training loss/eval curves parsed from a checkpoint's trainer_state.json log_history (e.g. models/whisper-small-ne-smoke/checkpoint-3/trainer_state.json)",
+        "Dashboard clearly labels current data as smoke-checkpoint sanity-check results, not final report numbers, consistent with T-004/T-005's reporting convention",
+        "README.md updated with a section on how to install (streamlit added to requirements.txt) and run the dashboard locally",
+        "A basic smoke test confirms the dashboard module imports cleanly and its data-loading functions (reading the reports/ CSVs and trainer_state.json) work without error — full Streamlit UI interaction testing is out of scope"
+      ],
+      "progress": "dashboard/app.py + dashboard/data.py: 4-tab Streamlit viewer (metrics, samples, categories, curves). Reads existing reports/ CSVs and trainer_state.json. Smoke-checkpoint warning banner. README + requirements updated.",
+      "blockers": [],
+      "review": {
+        "status": "Approved",
+        "failed_reviews": 0,
+        "notes": [
+          "Approved 2026-07-03. All 8 acceptance criteria met. Independently re-ran pytest tests/test_dashboard_data.py — 7/7 passed. Read dashboard/data.py and dashboard/app.py in full: clean separation of pure data-loading (data.py, no Streamlit imports) from rendering (app.py), matching the requested architecture. Went further than the packet's own claim ('subprocess headless start attempted') by actually launching `streamlit run dashboard/app.py --server.headless true` and confirming HTTP 200 from a live server — genuinely works end-to-end, not just statically parsed. Smoke-checkpoint warning banner present and prominent. Sidebar checkpoint-path override is a nice touch beyond the minimum ask. Process cleaned up after verification."
+        ]
+      },
+      "files": [
+        "dashboard/__init__.py",
+        "dashboard/app.py",
+        "dashboard/data.py",
+        "tests/test_dashboard_data.py",
+        "requirements.txt",
+        "README.md"
+      ],
+      "test_results": {
+        "pytest_dashboard_data": "7/7 passed",
+        "streamlit_startup": "AST parse + import path verified; subprocess headless start attempted",
+        "data_loaders": "wer_cer, error_samples, error_categories, trainer_state.json all parse OK"
+      }
+    },
+    {
+      "id": "T-008",
+      "title": "Live microphone voice-to-text demo tab in Streamlit dashboard",
+      "type": "feature",
+      "status": "Completed",
+      "owner": "Cursor",
+      "dependencies": ["T-007"],
+      "acceptance_criteria": [
+        "A new 'Live Demo' tab is added to dashboard/app.py using Streamlit's native st.audio_input widget (no new heavy dependency like streamlit-webrtc) to record microphone audio in-browser",
+        "Recorded audio is converted/resampled to 16kHz mono as needed before inference, reusing existing conversion logic (e.g. src/preprocessing.py or src/evaluation.py transcribe_array) rather than duplicating it",
+        "Inference runs via the currently-loaded checkpoint (reuse src/evaluation.py::load_checkpoint / transcribe_array) and displays the transcribed Nepali text in the UI",
+        "The tab clearly labels output as coming from the current checkpoint (default: the T-003 smoke checkpoint) and sets expectations that transcription quality will be poor/garbage until a full Colab training run replaces it — same caveat convention as the other tabs",
+        "No-audio or recording-error states (e.g. user hasn't recorded anything yet, or transcription raises an exception) are handled gracefully without crashing the app",
+        "A smoke test covers the underlying transcription call path (not st.audio_input itself, which can't be automated in a unit test) using a sample synthetic audio file consistent with existing test patterns in tests/test_dashboard_data.py or tests/test_evaluation.py",
+        "README.md's dashboard section is updated to mention the Live Demo tab and that it requires browser microphone permission"
+      ],
+      "progress": "Live Demo tab in dashboard/app.py using st.audio_input; dashboard/inference.py for bytes→array + transcribe helpers; reuses load_checkpoint/transcribe_array; cached model via st.cache_resource; graceful None/error states.",
+      "blockers": [],
+      "review": {
+        "status": "Approved",
+        "failed_reviews": 0,
+        "notes": [
+          "Approved 2026-07-03. All 7 acceptance criteria met. Independently re-ran pytest tests/test_dashboard_inference.py + test_dashboard_data.py — 11/11 passed, matching packet. dashboard/inference.py correctly delegates resampling to src/evaluation.py::transcribe_array rather than reimplementing it. Live Demo tab correctly uses the shared sidebar checkpoint_dir (not hardcoded), st.cache_resource kept in app.py (not leaked into the Streamlit-free inference.py), broad try/except around transcription showing st.error instead of crashing, plain prompt for the audio_input-is-None state. Live-verified: launched `streamlit run dashboard/app.py --server.headless true` on port 8503 with the new tab present, curl returned HTTP 200, process cleaned up after. README updated with mic-permission note. Uses st.audio_input per ADR-003 — no new heavy dependency added."
+        ]
+      },
+      "files": [
+        "dashboard/app.py",
+        "dashboard/inference.py",
+        "tests/test_dashboard_inference.py",
+        "README.md"
+      ],
+      "test_results": {
+        "pytest_dashboard_inference": "4/4 passed",
+        "pytest_dashboard_data_regression": "7/7 passed",
+        "no_audio_state": "verified via None branch — prompt shown, no transcription attempted",
+        "transcription_smoke": "transcribe_wav_bytes + transcribe_audio_file return str against smoke checkpoint"
+      }
+    },
+    {
+      "id": "T-009",
+      "title": "Ingest full Colab training results & finalize report artifacts",
+      "type": "feature",
+      "status": "Planned",
+      "owner": "Cursor",
+      "dependencies": ["T-001", "T-002", "T-003", "T-004", "T-005", "T-006", "T-007", "T-008"],
+      "human_prerequisite": "Complete Colab runbook steps 0–6 (full SLR54 data prep, 2000-step training, eval, error analysis, dashboard checkpoint pointed at real model). Human returns with 'check' and reported WER/CER.",
+      "acceptance_criteria": [
+        "Real training checkpoint path documented (default: models/whisper-small-ne/ or best eval checkpoint subdirectory) and synced from Drive to local models/ if not already present",
+        "reports/wer_cer_results.{csv,md} regenerated from notebooks/03_evaluate.ipynb against the full checkpoint — in-domain SLR54 test WER/CER and out-of-domain FLEURS ne_np WER/CER present; smoke-checkpoint caveat removed or replaced with final-results label",
+        "reports/error_samples.{csv,md} and error_categories.{csv,md,png} regenerated from notebooks/04_error_analysis.ipynb using the full checkpoint — non-degenerate category distribution on test set",
+        "Dashboard default checkpoint path in dashboard/app.py or README updated to the full checkpoint (or clearly documented one-line override); smoke-checkpoint warning banner updated to reflect final vs interim results",
+        "Full pytest suite still passes (MPLBACKEND=Agg pytest tests/) after any code/doc changes",
+        "A brief results summary added to reports/ (e.g. reports/training_results_summary.md) with: checkpoint used, train/val/test manifest sizes, final in-domain WER/CER, out-of-domain WER/CER, training steps completed, and whether results meet the ~15–30% in-domain WER target from project-context.md"
+      ],
+      "progress": null,
+      "blockers": [],
+      "review": {
+        "status": null,
+        "failed_reviews": 0,
+        "notes": []
+      },
+      "files": [],
+      "test_results": {}
+    }
+  ],
+  "history": [
+    { "version": 1, "updated_at": "2026-07-03T00:00:00Z", "by": "start.skill", "summary": "Project initialized (greenfield, source spec: start.md); backlog T-001..T-005 created; T-001 marked Ready for Implementation" },
+    { "version": 2, "updated_at": "2026-07-03T06:00:00Z", "by": "Cursor", "summary": "T-001 implemented: repo scaffold, requirements.txt, 00_setup.ipynb, README; status → Implemented" },
+    { "version": 3, "updated_at": "2026-07-03T06:15:00Z", "by": "Claude", "summary": "T-001 review Approved → Completed; T-002 marked Ready for Implementation" },
+    { "version": 4, "updated_at": "2026-07-03T06:30:00Z", "by": "Cursor", "summary": "T-002 implemented: SLR54 pipeline, 01_data_prep.ipynb, manifests, tests; status → Implemented" },
+    { "version": 5, "updated_at": "2026-07-03T07:00:00Z", "by": "Claude", "summary": "T-002 review Approved → Completed; T-003 marked Ready for Implementation" },
+    { "version": 6, "updated_at": "2026-07-03T07:20:00Z", "by": "Cursor", "summary": "T-003 implemented: src/training.py, whisper_small.ipynb, smoke test eval at step 3; status → Implemented" },
+    { "version": 7, "updated_at": "2026-07-03T07:30:00Z", "by": "Claude", "summary": "T-003 review: Changes Requested (duplicate notebook — root whisper_small.ipynb vs notebooks/02_finetune_whisper.ipynb); core implementation otherwise verified correct" },
+    { "version": 8, "updated_at": "2026-07-03T07:45:00Z", "by": "Cursor", "summary": "T-003 revision: consolidated notebook under notebooks/, deleted root whisper_small.ipynb; re-submitted for review" },
+    { "version": 9, "updated_at": "2026-07-03T08:00:00Z", "by": "Claude", "summary": "T-003 revision review Approved → Completed; T-004 marked Ready for Implementation" },
+    { "version": 10, "updated_at": "2026-07-03T08:15:00Z", "by": "Cursor", "summary": "T-004 implemented: evaluation.py, 03_evaluate.ipynb, WER/CER reports; status → Implemented" },
+    { "version": 11, "updated_at": "2026-07-03T08:30:00Z", "by": "Claude", "summary": "T-004 review Approved → Completed; T-005 marked Ready for Implementation" },
+    { "version": 12, "updated_at": "2026-07-03T08:45:00Z", "by": "Cursor", "summary": "T-005 implemented: error_analysis.py, 04_error_analysis.ipynb, report artifacts; status → Implemented" },
+    { "version": 13, "updated_at": "2026-07-03T09:00:00Z", "by": "Claude", "summary": "T-005 review Approved → Completed. Backlog T-001..T-005 fully complete; remaining work is a human-executed full Colab GPU training run." },
+    { "version": 14, "updated_at": "2026-07-03T09:10:00Z", "by": "Claude", "summary": "T-006 (full-pipeline QA pass) added and marked Ready for Implementation, per human request" },
+    { "version": 15, "updated_at": "2026-07-03T09:25:00Z", "by": "Cursor", "summary": "T-006 implemented: full QA pass, qa_summary.md, trivial hygiene fixes; status → Implemented" },
+    { "version": 16, "updated_at": "2026-07-03T09:40:00Z", "by": "Claude", "summary": "T-006 review Approved → Completed. Full backlog (T-001..T-006) complete; remaining work is human-executed Colab GPU run." },
+    { "version": 17, "updated_at": "2026-07-03T10:00:00Z", "by": "Claude", "summary": "T-007 (Streamlit visualization dashboard) added and marked Ready for Implementation, per human request; stack decision (Streamlit over FastAPI+React/Gradio) recorded in architecture-decisions.md" },
+    { "version": 18, "updated_at": "2026-07-03T16:30:00Z", "by": "Cursor", "summary": "T-007 implemented: Streamlit dashboard (dashboard/app.py, data.py), 7/7 tests; status → Implemented" },
+    { "version": 19, "updated_at": "2026-07-03T16:45:00Z", "by": "Claude", "summary": "T-007 review Approved → Completed (live server launch verified, HTTP 200). Backlog T-001..T-007 fully complete." },
+    { "version": 20, "updated_at": "2026-07-03T17:00:00Z", "by": "Claude", "summary": "T-008 (live mic voice-to-text demo tab) added and marked Ready for Implementation, per human request" },
+    { "version": 21, "updated_at": "2026-07-03T22:35:00Z", "by": "Cursor", "summary": "T-008 implemented: Live Demo tab (st.audio_input), dashboard/inference.py, 4/4 tests; status → Implemented" },
+    { "version": 22, "updated_at": "2026-07-03T22:50:00Z", "by": "Claude", "summary": "T-008 review Approved → Completed (live server launch verified with new tab, HTTP 200). Backlog T-001..T-008 fully complete." },
+    { "version": 23, "updated_at": "2026-07-06T02:00:00Z", "by": "Claude", "summary": "Sprint 1 closed. T-001..T-008 complete. Human Colab runbook documented in project-context.md. T-009 (ingest real results) queued as Planned — activates on human 'check' after full GPU training run." },
+    { "version": 24, "updated_at": "2026-07-06T02:05:00Z", "by": "Claude", "summary": "Human confirmed Colab runbook not yet executed (synthetic 40-utterance manifests, smoke checkpoint-3 only). T-009 gate held — remains Planned; dearcursor correctly declined premature implementation." }
+  ]
+}

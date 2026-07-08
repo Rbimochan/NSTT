@@ -1,0 +1,5 @@
+utterance_id,speaker_id,duration_s,reference,hypothesis,categories
+syn_spk01_utt00,speaker_01,1.5,नेपाल भाषा परीक्षण,नेपाल भाण,dialect_accent;oov_rare_vocabulary
+syn_spk01_utt01,speaker_01,1.6,नेपाल भाषा परीक्षण,नेपाल भाण,dialect_accent;oov_rare_vocabulary
+syn_spk01_utt02,speaker_01,1.7,नेपाल भाषा परीक्षण,नेपाल भाण,dialect_accent;oov_rare_vocabulary
+syn_spk01_utt03,speaker_01,1.8,नेपाल भाषा परीक्षण,नेपाल भाण,dialect_accent;oov_rare_vocabulary

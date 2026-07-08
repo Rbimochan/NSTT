@@ -1,0 +1,3 @@
+dataset,split,utterances,wer,cer,note
+SLR54,test,2,0.6667,0.5,
+FLEURS,test,1,1.0,0.96,Out-of-domain (FLEURS ne_np)

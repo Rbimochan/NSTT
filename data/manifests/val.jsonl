@@ -1,0 +1,4 @@
+{"utterance_id": "syn_spk00_utt00", "audio_path": "data/processed/syn_spk00_utt00.wav", "transcript": "नेपाल भाषा परीक्षण", "speaker_id": "speaker_00", "duration_s": 1.5, "split": "val"}
+{"utterance_id": "syn_spk00_utt01", "audio_path": "data/processed/syn_spk00_utt01.wav", "transcript": "नेपाल भाषा परीक्षण", "speaker_id": "speaker_00", "duration_s": 1.6, "split": "val"}
+{"utterance_id": "syn_spk00_utt02", "audio_path": "data/processed/syn_spk00_utt02.wav", "transcript": "नेपाल भाषा परीक्षण", "speaker_id": "speaker_00", "duration_s": 1.7, "split": "val"}
+{"utterance_id": "syn_spk00_utt03", "audio_path": "data/processed/syn_spk00_utt03.wav", "transcript": "नेपाल भाषा परीक्षण", "speaker_id": "speaker_00", "duration_s": 1.8, "split": "val"}

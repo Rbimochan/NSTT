@@ -1,0 +1,16 @@
+# NSTT pinned dependencies (T-001)
+# Colab runtimes ship CUDA-enabled torch; do not pin torch here.
+# If torchaudio install fails, match torchaudio to the runtime torch version
+# (Runtime → Manage sessions → check torch, then pip install torchaudio==<matching>).
+
+transformers==4.46.3
+datasets==3.2.0
+accelerate==1.2.1
+evaluate==0.4.3
+jiwer==3.0.5
+librosa==0.10.2.post1
+torchaudio==2.9.1
+soundfile==0.12.1
+matplotlib==3.10.0
+streamlit==1.41.1
+pandas==2.2.3
