@@ -3,6 +3,7 @@ data/*
 !data/.gitkeep
 !data/manifests/
 !data/manifests/**
+data/manifests/_progress.jsonl
 models/*
 !models/.gitkeep
 checkpoints/
